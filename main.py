@@ -29,17 +29,11 @@ class Message(BaseModel):
     role: str
     content: str
 
-    class Config:
-        orm_mode = True
-
 
 class ChatRequest(BaseModel):
     messages: List[Message]
     model: Optional[str] = "gpt-3.5-turbo"
     stream: Optional[bool] = False
-
-    class Config:
-        orm_mode = True
 
 
 class ChatResponse(BaseModel):
@@ -47,22 +41,14 @@ class ChatResponse(BaseModel):
     model: str
     tokens_used: int
 
-    class Config:
-        orm_mode = True
-
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
-    """Serve the main chat interface."""
     return templates.TemplateResponse(request=request, name="index.html")
 
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-    """
-    Send messages to OpenAI and get a response.
-    Maintains conversation history for context-aware replies.
-    """
     if not os.getenv("OPENAI_API_KEY"):
         raise HTTPException(status_code=500, detail="OpenAI API key not configured")
 
@@ -76,15 +62,9 @@ async def chat(request: ChatRequest):
             temperature=0.7,
             max_tokens=1000,
         )
-
         reply = response.choices[0].message.content
         tokens_used = response.usage.total_tokens
-
-        return ChatResponse(
-            reply=reply,
-            model=response.model,
-            tokens_used=tokens_used,
-        )
+        return ChatResponse(reply=reply, model=response.model, tokens_used=tokens_used)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"OpenAI API error: {str(e)}")
@@ -92,10 +72,6 @@ async def chat(request: ChatRequest):
 
 @app.post("/api/chat/stream")
 async def chat_stream(request: ChatRequest):
-    """
-    Stream responses token-by-token using Server-Sent Events.
-    Gives a real-time typing effect in the UI.
-    """
     if not os.getenv("OPENAI_API_KEY"):
         raise HTTPException(status_code=500, detail="OpenAI API key not configured")
 
@@ -124,18 +100,11 @@ async def chat_stream(request: ChatRequest):
 
 @app.get("/api/health")
 async def health_check():
-    """Health check endpoint."""
-    api_key_set = bool(os.getenv("OPENAI_API_KEY"))
-    return {
-        "status": "healthy",
-        "api_key_configured": api_key_set,
-        "version": "1.0.0"
-    }
+    return {"status": "healthy", "api_key_configured": bool(os.getenv("OPENAI_API_KEY")), "version": "1.0.0"}
 
 
 @app.get("/api/models")
 async def list_models():
-    """Return available OpenAI models."""
     return {
         "models": [
             {"id": "gpt-3.5-turbo", "name": "GPT-3.5 Turbo", "description": "Fast & cost-effective"},
